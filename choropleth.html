@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <link href='https://fonts.googleapis.com/css?family=Roboto Slab' rel='stylesheet'>
+  <link href='https://fonts.googleapis.com/css?family=Fira Sans' rel='stylesheet'>
+  <link rel="stylesheet" href="style.css">
+  <!-- Load d3.js -->
+  <script src="https://d3js.org/d3.v4.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
+
+  <script src="https://d3js.org/topojson.v2.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div style="padding-bottom: 20px">
+  <a href="index.html">Home</a>
+  <h2>Overall Covid Cases</h2>
+  <p>total number of cases in a million of population, from 2020 to 2022:</p>
+</div>
+
+<!-- Create an element where the map will take place -->
+<svg id="SA_map" width="675" height="465"></svg>
+<!--<div id="center">This choropleth displays the COVID-19 cases per capita in South America. The shades of color represent the number of cases per 100,000 people, with darker colors indicating higher numbers. The data is sourced from a CSV file that contains information on the COVID-19 cases in each country of the region. The highest number of cases per capita is shown in Uruguay with almost 300,000 cases per 1,000,000 people, followed by Chile and Argentina with over 200,000 cases per 1,000,000 people. The lowest number of cases per capita is seen in Venezuela, with less than 20,000 cases per 1000,000 people. This choropleth provides a visual representation of the impact of COVID-19 on the South American countries and highlights the countries that have been hit the hardest by the pandemic.</div>
+-->
+</body>
+
+
+
+<script>
+
+  // The svg
+  var svg = d3.select("#SA_map"),
+          width = +svg.attr("width"),
+          height = +svg.attr("height");
+
+  // Map and projection
+  var path = d3.geoPath();
+  var projection = d3.geoMercator()
+          .scale(320)
+          .center([-60,-25])
+          .translate([width/2, height / 2.15]);
+
+  // Data and color scale
+  var data = d3.map();
+  var colorScale = d3.scaleThreshold()
+          .domain([0,50000, 100000, 150000, 200000, 250000, 300000])
+          .range(d3.schemeReds[7]);
+
+  // Load external data and boot
+  d3.queue()
+          .defer(d3.json, "mySA.geojson")
+          .defer(d3.csv, "total_cases_per_million.csv", function(d) { data.set(d.code, +d.N); })
+          .await(ready);
+
+  function ready(error, topo) {
+
+    // Draw the map
+    svg.append("g")
+            .selectAll("path")
+            .data(topo.features)
+            .enter()
+            .append("path")
+            // draw each country
+            .attr("d", d3.geoPath()
+                    .projection(projection)
+            )
+            // set the color of each country
+            .attr("fill", function (d) {
+              d.total = data.get(d.id) || 0;
+              return colorScale(d.total);
+            })
+            // show the name of the country on hover
+            // show the name of the country and number of cases on hover
+            // show the name of the country and number of cases on hover
+            .on("mouseover", function(d) {
+              d3.select(this).attr("fill", "orange");
+              svg.append("rect")
+                      .attr("id", "tooltip-bg")
+                      .attr("x", function() { return d3.mouse(this)[0] + 10; })
+                      .attr("y", function() { return d3.mouse(this)[1] + 25; })
+                      .attr("width", "150")
+                      .attr("height", "30")
+                      .style("fill", "white")
+                      .style("stroke", "black")
+                      .style("stroke-width", "1px");
+              svg.append("text")
+                      .attr("id", "tooltip")
+                      .attr("x", function() { return d3.mouse(this)[0] + 18; })
+                      .attr("y", function() { return d3.mouse(this)[1] + 40; })
+                      .text(d.properties.name + ": " + d.total.toLocaleString() );
+            })
+            .on("mouseout", function(d) {
+              d3.select(this).attr("fill", function (d) {
+                d.total = data.get(d.id) || 0;
+                return colorScale(d.total);
+              })
+              d3.select("#tooltip").remove();
+              d3.select("#tooltip-bg").remove();
+            });
+
+
+    // Create the legend
+    var legend = svg.selectAll("g.legend")
+            .data(colorScale.range())
+            .enter()
+            .append("g")
+            .attr("class", "legend")
+            .attr("transform", function(d, i) { return "translate(" + (width - 150) + "," + (20 + i * 20) + ")"; });
+
+    // Add the colored rectangles to the legend
+    legend.append("rect")
+            .attr("width", 18)
+            .attr("height", 18)
+            .style("fill", function(d) { return d; });
+
+    // Add the legend text
+// Add the legend text
+    legend.append("text")
+            .attr("x", 24)
+            .attr("y", 9)
+            .attr("dy", ".35em")
+            .text(function(d, i) {
+              var r = colorScale.invertExtent(d);
+              if (i < colorScale.range().length - 1) {
+                if (r[1] == 0)
+                  return "<" + r[1]
+                else
+                  return r[0] + " - " + r[1];
+              } else {
+                return "> " + r[0];
+              }
+            });
+
+
+  }
+
+</script>

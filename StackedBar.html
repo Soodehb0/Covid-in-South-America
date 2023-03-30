@@ -1,0 +1,122 @@
+
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <link href='https://fonts.googleapis.com/css?family=Roboto Slab' rel='stylesheet'>
+    <link href='https://fonts.googleapis.com/css?family=Fira Sans' rel='stylesheet'>
+    <link rel="stylesheet" href="style.css">
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v4.js"></script>
+</head>
+<!-- Create a div where the graph will take place -->
+<body>
+<div style="padding-bottom: 20px">
+    <a href="index.html">Home</a>
+    <h2>Share of people vaccinated against covid, Dec 31, 2022</h2>
+    <p>percentage of people who were either fully or partially vaccinated up until Dec 31, 2022 in South American countries.</p>
+</div>
+<div id="my_dataviz"></div>
+</body>
+
+<script>
+
+    // set the dimensions and margins of the graph
+    var margin = {top: 5, right: 130, bottom: 20, left: 100},
+        width = 700 - margin.left - margin.right,
+        height = 450 - margin.top - margin.bottom;
+
+    // append the svg object to the body of the page
+    var svg = d3.select("#my_dataviz")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    // Parse the Data
+    d3.csv("Sbar.csv", function(data) {
+
+        // List of subgroups = header of the csv files = soil condition here
+        var subgroups = data.columns.slice(1)
+
+        // List of groups = species here = value of the first column called group -> I show them on the Y axis
+        var groups = d3.map(data, function(d){return(d.group)}).keys()
+
+        // Add Y axis
+        var y = d3.scaleBand()
+            .domain(groups)
+            .range([0, height])
+            .padding([0.2])
+        svg.append("g")
+            .call(d3.axisLeft(y).tickSizeOuter(0));
+
+        // Add X axis
+        var x = d3.scaleLinear()
+            .domain([0, 100])
+            .range([0, width]);
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+
+        // color palette = one color per subgroup
+        var color = d3.scaleOrdinal()
+            .domain(subgroups)
+            .range(['#e41a1c','#377eb8','#4daf4a'])
+
+        //stack the data? --> stack per subgroup
+        var stackedData = d3.stack()
+            .keys(subgroups)
+            (data)
+
+        // Show the bars
+        svg.append("g")
+            .selectAll("g")
+            // Enter the stack data = loop key per key = subgroup per subgroup
+            .data(stackedData)
+            .enter().append("g")
+            .attr("fill", function(d) { return color(d.key); })
+            .selectAll("rect")
+            // enter a second time = loop subgroup per subgroup to add all rectangles
+            .data(function(d) { return d; })
+            .enter().append("rect")
+            .attr("y", function(d) { return y(d.data.group); })
+            .attr("x", function(d) { return x(d[0]); })
+            .attr("width", function(d) { return x(d[1]) - x(d[0]); })
+            .attr("height", y.bandwidth());
+
+        // Add legend
+        var legend = svg.append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(" + (width + 10) + ", 0)");
+
+        var legendData = [
+            {label: "Fully vaccinated", color: "#e41a1c"},
+            {label: "Partially vaccinated", color: "#377eb8"}
+        ];
+
+        legend.selectAll("rect")
+            .data(legendData)
+            .enter()
+            .append("rect")
+            .attr("y", function(d, i) { return i * 20; })
+            .attr("width", 15)
+            .attr("height", 15)
+            .style("fill", function(d) { return d.color; });
+
+        legend.selectAll("text")
+            .data(legendData)
+            .enter()
+            .append("text")
+            .attr("x", 20)
+            .attr("y", function(d, i) { return i * 20 + 12; })
+            .text(function(d) { return d.label; })
+            .attr("class", "textselected")
+            .style("text-anchor", "start")
+            .style("font-size", 12);
+
+
+
+    })
+
+</script>
